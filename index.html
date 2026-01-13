@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>급식비 계산기 (데이터 타입 보정판)</title>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; line-height: 1.6; color: #333; background-color: #f4f7f6; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; }
+        .section { margin-bottom: 25px; padding: 15px; border: 1px solid #eee; border-radius: 8px; }
+        .section-title { font-weight: bold; margin-bottom: 10px; color: #007bff; display: block; }
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 10px; }
+        label { display: block; font-size: 0.9em; margin-bottom: 5px; color: #666; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .button-group { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        #status { margin-top: 15px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>급식비 계산기</h1>
+    <p style="text-align: center; color: #27ae60; font-size: 0.9em;">🔢 수당시간(분) 및 No. 컬럼이 숫자 형식으로 저장됩니다.</p>
+
+    <div class="section">
+        <span class="section-title">1. 엑셀 파일 선택</span>
+        <input type="file" id="excelFile" accept=".xlsx, .xls">
+    </div>
+
+    <div class="section">
+        <span class="section-title">2. 기본 설정</span>
+        <div class="input-group">
+            <div><label>급식비 단가 (원)</label><input type="number" id="unitPrice" value="9000"></div>
+            <div><label>휴일 최소 근무시간 (분)</label><input type="number" id="minHours" value="60"></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="section-title">3. 휴일 제외 시간 [HH:mm(24시간제) 형식으로 입력]</span>
+        <div class="input-group">
+            <div><label>미지급 시간 1 시작</label><input type="text" id="s1" value="09:00"></div>
+            <div><label>미지급 시간 1 종료</label><input type="text" id="e1" value="12:00"></div>
+        </div>
+        <div class="input-group">
+            <div><label>미지급 시간 2 시작</label><input type="text" id="s2" value="13:00"></div>
+            <div><label>미지급 시간 2 종료</label><input type="text" id="e2" value="18:00"></div>
+        </div>
+        <div class="input-group">
+            <div style="grid-column: span 2;">
+                <label>미지급 시간 3 시작 (이후 미지급)</label>
+                <input type="text" id="s3" value="19:00">
+            </div>
+        </div>
+    </div>
+
+    <div class="button-group">
+        <button class="btn-primary" onclick="processExcel()">계산 및 결과 다운로드</button>
+        <button class="btn-secondary" onclick="location.reload()">초기화</button>
+    </div>
+
+    <div id="status"></div>
+</div>
+
+<script>
+    function timeToVal(timeStr) {
+        if (!timeStr) return null;
+        return timeStr.replace(/:/g, '').trim().substring(0, 4);
+    }
+
+    async function processExcel() {
+        const fileInput = document.getElementById('excelFile');
+        const status = document.getElementById('status');
+        if (!fileInput.files[0]) { alert('파일을 선택해주세요.'); return; }
+
+        status.innerText = "데이터 처리 중...";
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+
+                const config = {
+                    unitPrice: parseInt(document.getElementById('unitPrice').value),
+                    minHours: parseInt(document.getElementById('minHours').value),
+                    s1: timeToVal(document.getElementById('s1').value), e1: timeToVal(document.getElementById('e1').value),
+                    s2: timeToVal(document.getElementById('s2').value), e2: timeToVal(document.getElementById('e2').value),
+                    s3: timeToVal(document.getElementById('s3').value)
+                };
+
+                const targetColumns = ['No.', '근무일자', '부서', '직급', '고유식별번호', '성명', '휴일구분', '자료구분', '결재상태', '출근(실제)', '퇴근(실제)', '수당시간(분)'];
+
+                const processedData = rows
+                    .filter(row => row['자료구분'] === '정산' && row['결재상태'] === '처리')
+                    .map(row => {
+                        let mealCount = 0;
+                        const overtime = parseInt(row['수당시간(분)'] || 0);
+                        const isHoliday = row['휴일구분'] === '휴일';
+                        const start = timeToVal(row['출근(실제)']);
+                        const end = timeToVal(row['퇴근(실제)']);
+
+                        if (!isHoliday && overtime >= 60) mealCount = 1;
+                        else if (isHoliday && overtime >= config.minHours) {
+                            mealCount = 1;
+                            if (config.s1 && config.e1 && start >= config.s1 && end <= config.e1) mealCount = 0;
+                            if (config.s2 && config.e2 && start >= config.s2 && end <= config.e2) mealCount = 0;
+                            if (config.s3 && start >= config.s3) mealCount = 0;
+                        }
+
+                        const res = {};
+                        targetColumns.forEach(c => {
+                            let val = row[c];
+                            // [핵심 수정] 숫자형 컬럼에 대한 명시적 형변환
+                            if (c === '수당시간(분)' || c === 'No.') {
+                                val = val ? Number(val) : 0;
+                            }
+                            res[c] = val;
+                        });
+                        
+                        res['식수'] = mealCount;
+                        res['식대'] = mealCount * config.unitPrice;
+                        
+                        const d = new Date(row['근무일자']);
+                        res['_day'] = isNaN(d.getTime()) ? null : d.getDate();
+                        return res;
+                    });
+
+                // 시트 2: 개인별 합계
+                const summaryMap = new Map();
+                processedData.forEach(r => {
+                    const existing = summaryMap.get(r['성명']) || { '성명': r['성명'], '총식수': 0, '총식대': 0 };
+                    existing['총식수'] += r['식수'];
+                    existing['총식대'] += r['식대'];
+                    summaryMap.set(r['성명'], existing);
+                });
+
+                // 시트 3: 날짜별 체크
+                const activeDaysNums = [...new Set(processedData.filter(r => r['식수'] === 1).map(r => r['_day']))].sort((a,b) => a-b);
+                const activeDaysHeaders = activeDaysNums.map(d => d + "일");
+                const names = [...new Set(processedData.map(r => r['성명']))].sort();
+                
+                const pivotData = names.map(name => {
+                    const row = { '성명': name };
+                    activeDaysNums.forEach((dayNum, idx) => {
+                        const hasMeal = processedData.some(r => r['성명'] === name && r['_day'] === dayNum && r['식수'] === 1);
+                        const headerKey = activeDaysHeaders[idx];
+                        row[headerKey] = hasMeal ? dayNum : ""; 
+                    });
+                    return row;
+                });
+
+                const newWb = XLSX.utils.book_new();
+                
+                // 시트 1: 상세내역
+                const detailSheet = XLSX.utils.json_to_sheet(processedData.map(({_day, ...rest}) => rest));
+                XLSX.utils.book_append_sheet(newWb, detailSheet, "상세내역");
+
+                // 시트 2: 개인별합계
+                XLSX.utils.book_append_sheet(newWb, XLSX.utils.json_to_sheet([...summaryMap.values()]), "개인별합계");
+
+                // 시트 3: 날짜별체크
+                const pivotSheet = XLSX.utils.json_to_sheet(pivotData, { header: ['성명', ...activeDaysHeaders] });
+                XLSX.utils.book_append_sheet(newWb, pivotSheet, "날짜별체크");
+
+                XLSX.writeFile(newWb, `급식비정산_최종_${new Date().toISOString().slice(0,10)}.xlsx`);
+                status.innerText = "형식 보정 완료!";
+            } catch (err) {
+                console.error(err);
+                alert("처리 중 오류가 발생했습니다.");
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+</script>
+</body>
+</html>
