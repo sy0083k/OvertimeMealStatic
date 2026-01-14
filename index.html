@@ -212,7 +212,7 @@
                 const pivotSheet = XLSX.utils.json_to_sheet(pivotData, { header: ['성명', ...activeDaysHeaders] });
                 XLSX.utils.book_append_sheet(newWb, pivotSheet, "날짜별체크");
 
-                XLSX.writeFile(newWb, `급식비정산_최종_${new Date().toISOString().slice(0,10)}.xlsx`);
+                XLSX.writeFile(newWb, `계산결과_${new Date().toISOString().slice(0,10)}.xlsx`);
                 status.innerText = "형식 보정 완료!";
             } catch (err) {
                 console.error(err);
