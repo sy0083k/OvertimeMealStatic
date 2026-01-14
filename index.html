@@ -29,6 +29,29 @@
         .btn-primary:hover { background-color: #0056b3; }
         .btn-secondary { background-color: #6c757d; color: white; }
         #status { margin-top: 15px; text-align: center; font-weight: bold; }
+		footer {
+            margin-top: 40px;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+            color: #888;
+            font-size: 0.85em;
+        }
+        .contact-link {
+            display: inline-flex;
+            align-items: center;
+            color: #555;
+            text-decoration: none;
+            font-weight: 500;
+            margin-top: 5px;
+            transition: color 0.2s;
+        }
+        .contact-link:hover {
+            color: #007bff;
+        }
+        .contact-link svg {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +98,16 @@
 
     <div id="status"></div>
 </div>
+
+<footer>
+	<p>문의사항 및 오류 제보</p>
+	<a href="mailto:sy0083k@gmail.com" class="contact-link">
+		<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+			<path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/>
+		</svg>
+		sy0083k@gmail.com
+	</a>
+</footer>
 
 <script>
     function timeToVal(timeStr) {
