@@ -213,7 +213,7 @@
                 XLSX.utils.book_append_sheet(newWb, pivotSheet, "날짜별체크");
 
                 XLSX.writeFile(newWb, `계산결과_${new Date().toISOString().slice(0,10)}.xlsx`);
-                status.innerText = "형식 보정 완료!";
+                status.innerText = "후원방법: 온나라 협업포인트 전송(To: 태성용)";
             } catch (err) {
                 console.error(err);
                 alert("처리 중 오류가 발생했습니다.");
